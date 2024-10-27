@@ -49,6 +49,10 @@ final class SourceFileBuilder {
         return className;
     }
 
+    public String packageName() {
+        return packageName;
+    }
+
     public static SourceFileBuilder newSourceFile(String packageName, String className) {
         SourceFileBuilder sfb = new SourceFileBuilder(packageName, className);
         sfb.emitPackagePrefix();

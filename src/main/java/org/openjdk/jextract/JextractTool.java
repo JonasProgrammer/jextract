@@ -41,7 +41,6 @@ import org.openjdk.jextract.impl.UnsupportedFilter;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.UncheckedIOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -114,14 +113,16 @@ public final class JextractTool {
 
     public static List<JavaSourceFile> generate(Declaration.Scoped decl, String headerName,
                                                 String targetPkg, List<Options.Library> libs,
-                                                boolean useSystemLoadLibrary) {
+                                                boolean useSystemLoadLibrary,
+                                                boolean useLookupConfig) {
         return generateInternal(decl, headerName, targetPkg, new IncludeHelper(),
-                libs, useSystemLoadLibrary, Logger.DEFAULT);
+                libs, useSystemLoadLibrary, useLookupConfig, Logger.DEFAULT);
     }
 
     private static List<JavaSourceFile> generateInternal(Declaration.Scoped decl, String headerName,
                                                          String targetPkg, IncludeHelper includeHelper,
                                                          List<Options.Library> libs, boolean useSystemLoadLibrary,
+                                                         boolean useLookupConfig,
                                                          Logger logger) {
         var transformedDecl = Stream.of(decl)
                 // process phases that add Skips first
@@ -134,7 +135,7 @@ public final class JextractTool {
                 .findFirst().get();
         return logger.hasErrors() ?
                 List.of() :
-                List.of(OutputFactory.generateWrapped(transformedDecl, targetPkg, libs, useSystemLoadLibrary));
+                List.of(OutputFactory.generateWrapped(transformedDecl, targetPkg, libs, useSystemLoadLibrary, useLookupConfig));
     }
 
     /**
@@ -361,6 +362,7 @@ public final class JextractTool {
         parser.accepts("-I", List.of("--include-dir"), "help.I", true);
         parser.accepts("-l", List.of("--library"), "help.l", true);
         parser.accepts("--use-system-load-library", "help.use.system.load.library", false);
+        parser.accepts("--use-lookup-config", "help.use.lookup.config", false);
         parser.accepts("--output", "help.output", true);
         parser.accepts("-t", List.of("--target-package"), "help.t", true);
         parser.accepts("--version", "help.version", false);
@@ -442,6 +444,8 @@ public final class JextractTool {
             builder.setUseSystemLoadLibrary(true);
         }
 
+        builder.setUseLookupConfig(optionSet.has("--use-lookup-config"));
+
         boolean librariesSpecified = optionSet.has("-l");
         if (librariesSpecified) {
             for (String lib : optionSet.valuesOf("-l")) {
@@ -500,7 +504,7 @@ public final class JextractTool {
             }
             files = generateInternal(
                 toplevel, headerName,
-                options.targetPackage, options.includeHelper, options.libraries, options.useSystemLoadLibrary, logger);
+                options.targetPackage, options.includeHelper, options.libraries, options.useSystemLoadLibrary, options.useLookupConfig, logger);
 
             if (logger.hasClangErrors()) {
                 return CLANG_ERROR;

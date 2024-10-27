@@ -307,7 +307,8 @@ class HeaderFileBuilder extends ClassSourceBuilder {
         emitPrimitiveTypedefLayout(name, Type.pointer(), typedefTree);
     }
 
-    void emitFirstHeaderPreamble(List<Options.Library> libraries, boolean useSystemLoadLibrary) {
+    void emitFirstHeaderPreamble(List<Options.Library> libraries, boolean useSystemLoadLibrary, boolean useLookupConfig,
+                                 List<SourceFileBuilder> otherBuilders) {
         List<String> lookups = new ArrayList<>();
         // if legacy library loading is selected, load libraries (if any) into current loader
         if (useSystemLoadLibrary) {
@@ -345,16 +346,50 @@ class HeaderFileBuilder extends ClassSourceBuilder {
             isFirst = false;
         }
 
+	    String generatedLookupDefinitionIntro;
+        if (useLookupConfig) {
+            generatedLookupDefinitionIntro = "static final SymbolLookup DEFAULT_LOOKUP = ";
+        } else {
+            generatedLookupDefinitionIntro = "static final SymbolLookup SYMBOL_LOOKUP = ";
+        }
+
         // chain all the calls together into a combined symbol lookup
+        String generatedLookup = lookupCalls.stream()
+                                            .collect(Collectors.joining(String.format("\n%1$s", indentString(2)), generatedLookupDefinitionIntro, ";"));
+
         appendBlankLine();
-        appendIndentedLines(lookupCalls.stream()
-                .collect(Collectors.joining(String.format("\n%1$s", indentString(2)), "static final SymbolLookup SYMBOL_LOOKUP = ", ";")));
+        if (useLookupConfig) {
+            String configClass = lookupConfigClassName();
+            SourceFileBuilder cfgSfb = SourceFileBuilder.newSourceFile(sourceFileBuilder().packageName(), configClass);
+            new LookupConfigBuilder(cfgSfb, runtimeHelperName(), generatedLookup).emit();
+            otherBuilders.add(cfgSfb);
+
+            appendIndentedLines(String.format("""
+                private static SymbolLookup symbolLookup() {
+                    return %1$s.SYMBOL_LOOKUP;
+                }""", configClass));
+        } else {
+            appendIndentedLines(generatedLookup);
+            appendIndentedLines("""
+                private static SymbolLookup symbolLookup() {
+                    return SYMBOL_LOOKUP;
+                }""");
+        }
     }
 
-    void emitRuntimeHelperMethods() {
-        appendIndentedLines("""
+    private String lookupConfigClassName() {
+        return runtimeHelperName() + "_LookupConfig";
+    }
 
-            static final Arena LIBRARY_ARENA = Arena.ofAuto();
+    void emitRuntimeHelperMethods(boolean useLookupConfig) {
+        appendBlankLine();
+        if (useLookupConfig) {
+            appendIndentedLines("static final Arena LIBRARY_ARENA = " + lookupConfigClassName() + ".LIBRARY_ARENA;");
+        } else {
+            appendIndentedLines("static final Arena LIBRARY_ARENA = Arena.ofAuto();");
+        }
+
+        appendIndentedLines("""
             static final boolean TRACE_DOWNCALLS = Boolean.getBoolean("jextract.trace.downcalls");
 
             static void traceDowncall(String name, Object... args) {
@@ -365,7 +400,7 @@ class HeaderFileBuilder extends ClassSourceBuilder {
             }
 
             static MemorySegment findOrThrow(String symbol) {
-                return SYMBOL_LOOKUP.find(symbol)
+                return symbolLookup().find(symbol)
                     .orElseThrow(() -> new UnsatisfiedLinkError("unresolved symbol: " + symbol));
             }
 

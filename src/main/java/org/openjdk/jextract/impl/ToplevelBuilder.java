@@ -49,20 +49,22 @@ class ToplevelBuilder implements OutputFactory.Builder {
     private final ClassDesc headerDesc;
 
     ToplevelBuilder(String packageName, String headerClassName,
-                    List<Options.Library> libs, boolean useSystemLoadLibrary) {
+                    List<Options.Library> libs, boolean useSystemLoadLibrary,
+                    boolean useLookupConfig) {
         this.headerDesc = ClassDesc.of(packageName, headerClassName);
         SourceFileBuilder sfb = SourceFileBuilder.newSourceFile(packageName, headerClassName);
         headerBuilders.add(sfb);
-        lastHeader = createFirstHeader(sfb, libs, useSystemLoadLibrary);
+        lastHeader = createFirstHeader(sfb, libs, useSystemLoadLibrary, useLookupConfig, otherBuilders);
     }
 
-    private static HeaderFileBuilder createFirstHeader(SourceFileBuilder sfb, List<Options.Library> libs, boolean useSystemLoadLibrary) {
+    private static HeaderFileBuilder createFirstHeader(SourceFileBuilder sfb, List<Options.Library> libs, boolean useSystemLoadLibrary,
+                                                       boolean useLookupConfig, List<SourceFileBuilder> otherBuilders) {
         HeaderFileBuilder first = new HeaderFileBuilder(sfb, String.format("%1$s#{SUFFIX}",sfb.className()), null, sfb.className());
         first.appendBlankLine();
         first.classBegin();
         first.emitDefaultConstructor();
-        first.emitRuntimeHelperMethods();
-        first.emitFirstHeaderPreamble(libs, useSystemLoadLibrary);
+        first.emitRuntimeHelperMethods(useLookupConfig);
+        first.emitFirstHeaderPreamble(libs, useSystemLoadLibrary, useLookupConfig, otherBuilders);
         // emit basic primitive types
         first.appendIndentedLines("""
 

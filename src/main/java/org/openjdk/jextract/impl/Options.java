@@ -34,6 +34,8 @@ public final class Options {
     public final List<Library> libraries;
     // The symbol lookup kind
     public final boolean useSystemLoadLibrary;
+    // Whether to delegate symbol lookup with a config class
+    public final boolean useLookupConfig;
     // target package
     public final String targetPackage;
     // output directory
@@ -41,10 +43,12 @@ public final class Options {
     public final IncludeHelper includeHelper;
 
     private Options(List<String> clangArgs, List<Library> libraries, boolean useSystemLoadLibrary,
+                    boolean useLookupConfig,
                     String targetPackage, String outputDir, IncludeHelper includeHelper) {
         this.clangArgs = clangArgs;
         this.libraries = libraries;
         this.useSystemLoadLibrary = useSystemLoadLibrary;
+        this.useLookupConfig = useLookupConfig;
         this.targetPackage = targetPackage;
         this.outputDir = outputDir;
         this.includeHelper = includeHelper;
@@ -58,6 +62,7 @@ public final class Options {
         private final List<String> clangArgs;
         private final List<Library> libraries;
         private boolean useSystemLoadLibrary;
+        private boolean useLookupConfig;
         private String targetPackage;
         private String outputDir;
         private final IncludeHelper includeHelper = new IncludeHelper();
@@ -68,13 +73,14 @@ public final class Options {
             this.targetPackage = "";
             this.outputDir = ".";
             this.useSystemLoadLibrary = false;
+            this.useLookupConfig = false;
         }
 
         public Options build() {
             return new Options(
                     Collections.unmodifiableList(clangArgs),
                     Collections.unmodifiableList(libraries),
-                    useSystemLoadLibrary, targetPackage, outputDir, includeHelper
+                    useSystemLoadLibrary, useLookupConfig, targetPackage, outputDir, includeHelper
             );
         }
 
@@ -88,6 +94,10 @@ public final class Options {
 
         public void setUseSystemLoadLibrary(boolean useSystemLoadLibrary) {
             this.useSystemLoadLibrary = useSystemLoadLibrary;
+        }
+
+        public void setUseLookupConfig(boolean useLookupConfig) {
+            this.useLookupConfig = useLookupConfig;
         }
 
         public void setOutputDir(String outputDir) {
